@@ -6,11 +6,11 @@
  
 ##PREPROCESSING
 
- <br> &nbsp 1. The primary focus on conversations in this project will be the interactions in English language.</br>
+ <br> &nbsp; 1. The primary focus on conversations in this project will be the interactions in English language.</br>
 
- <br> &nbsp 2. All toxic data is exceluded from the project scope.</br>
+ <br> &nbsp; 2. All toxic data is exceluded from the project scope.</br>
 
- <br> &nbsp 3. The dataset contains the following schema : </br>
+ <br> &nbsp; 3. The dataset contains the following schema : </br>
        <br>root</br>
        <br>|-- conversation_hash: string (nullable = true)</br>
        <br>|-- model: string (nullable = true)</br>
