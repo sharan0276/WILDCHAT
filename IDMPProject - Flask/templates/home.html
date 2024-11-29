@@ -2,9 +2,228 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>Keyword Search</title>
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+        }
+        button {
+            background-color: blue;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: darkblue;
+        }
+
+        #resultsDiv {
+            display: flex;
+            flex-wrap: wrap; /* Ensures cards wrap to the next row if needed */
+            gap: 20px; /* Adds space between cards */
+            justify-content: center; /* Centers cards horizontally */
+            margin: 20px auto; /* Adds spacing around the results */
+            max-width: 80%; /* Limits the total width of the cards container */
+        }
+        .card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin: 10px auto;
+            padding: 15px;
+            width: calc(50% - 20px);
+            box-sizing: border-box;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            text-align: left;
+        }
+        .card:hover {
+            background-color: #f1f1f1;
+        }
+        .pagination {
+            margin: 20px 0;
+        }
+        .pagination button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 0 5px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .pagination button:hover {
+            background: #0056b3;
+        }
+        .pagination button.disabled {
+            background: #ddd;
+            cursor: not-allowed;
+        }
+
+        .user-prompt {
+            color: blue;
+            font-weight: bold;
+            margin-bottom: 10px; /* Line gap */
+        }
+
+        .bot-response {
+            color: black;
+        }
+
+        @media (max-width: 768px) {
+            .card {
+            width: 100%; /* On smaller screens, cards take full width */
+            }
+        }
+    </style>
 </head>
 <body>
+<h1>Keyword Search</h1>
+<form id="searchForm" action="/search" method="POST">
+    <label for="keyword">Keyword:</label>
+    <input id="keyword" name="keyword"  placeholder="Enter keyword">
+    <br><br>
 
+    <label for="state">State:</label>
+    <input id="state" name="state" required type="text" placeholder="Enter State">
+    <br><br>
+
+    <label for="country">Country:</label>
+    <input id="country" name="country" required type="text" placeholder="Enter Country">
+    <br><br>
+
+    <label for="model">Model:</label>
+    <select id="model" name="model" placeholder="Enter Model">
+        <option value="Both">Both</option>
+        <option value="gpt-3.5-turbo-0301">gpt-3.5-turbo-0301</option>
+        <option value="gpt-3.5-turbo-0613">gpt-3.5-turbo-0613</option>
+        <option value="gpt-3.5-turbo-0125">gpt-3.5-turbo-0125</option>
+        <option value="gpt-4-0314">gpt-4-0314</option>
+        <option value="gpt-4-1106-preview">gpt-4-1106-preview</option>
+        <option value="gpt-4-0613">gpt-4-0613</option>
+        <option value="gpt-4-0125-preview">gpt-4-0125-preview</option>
+    </select>
+    <br><br>
+
+    <button type="submit">Submit</button>
+</form>
+
+<div id="results"></div>
+<div class="pagination" id="pagination"></div>
+
+<script>
+    const resultsPerPage = 10;
+    let currentPage = 1;
+    let searchResults = [];
+
+<!--    // Fetch results from the server-->
+    document.getElementById('searchForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const keyword = document.getElementById('keyword').value;
+        const state = document.getElementById('state').value;
+        const country = document.getElementById('country').value;
+        const model = document.getElementById('model').value;
+
+        const response = await fetch('/search', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `keyword=${encodeURIComponent(keyword)}&state=${encodeURIComponent(state)}&country=${encodeURIComponent(country)}&model=${encodeURIComponent(model)}`,
+        });
+
+        if (response.ok) {
+            searchResults = await response.json();
+            currentPage = 1;
+            displayResults();
+        } else {
+            alert('Error fetching results. Please try again.');
+        }
+    });
+
+    // Display results with pagination
+    function displayResults() {
+        const resultsDiv = document.getElementById('results');
+        const paginationDiv = document.getElementById('pagination');
+        resultsDiv.innerHTML = '';
+        paginationDiv.innerHTML = '';
+
+        const start = (currentPage - 1) * resultsPerPage;
+        const end = start + resultsPerPage;
+        const currentResults = searchResults.slice(start, end);
+
+        currentResults.forEach((result) => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            // Create elements with class names
+            const userPrompt = document.createElement('div');
+            userPrompt.className = 'user-prompt';
+            userPrompt.innerText = result.userprompt;
+
+            const botResponse = document.createElement('div');
+            botResponse.className = 'bot-response';
+            botResponse.innerText = result.botresp;
+
+            // Append the elements to the card
+            card.appendChild(userPrompt);
+            card.appendChild(botResponse);
+
+            card.addEventListener('click', async (e) => {
+            e.preventDefault();
+
+            const summaryResponse = await fetch('/summarize', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `text=${encodeURIComponent(result.clean_interaction)}`,
+            });
+
+            if (summaryResponse.ok) {
+                 const summary = await summaryResponse.text();
+                 alert(`Summarized Interaction: ${summary}`)
+
+
+            } else {
+                console.error("Error in summarizing ")
+                alert('Error fetching results. Please try again.');
+            }
+
+            });
+            resultsDiv.appendChild(card);
+        });
+
+        const totalPages = Math.ceil(searchResults.length / resultsPerPage);
+
+        // Previous button
+        const prevButton = document.createElement('button');
+        prevButton.innerText = 'Previous';
+        prevButton.disabled = currentPage === 1;
+        prevButton.className = currentPage === 1 ? 'disabled' : '';
+        prevButton.addEventListener('click', () => {
+            currentPage--;
+            displayResults();
+        });
+        paginationDiv.appendChild(prevButton);
+
+        // Next button
+        const nextButton = document.createElement('button');
+        nextButton.innerText = 'Next';
+        nextButton.disabled = currentPage === totalPages;
+        nextButton.className = currentPage === totalPages ? 'disabled' : '';
+        nextButton.addEventListener('click', () => {
+            currentPage++;
+            displayResults();
+        });
+        paginationDiv.appendChild(nextButton);
+    }
+</script>
 </body>
 </html>

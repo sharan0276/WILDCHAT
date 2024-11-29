@@ -1,5 +1,4 @@
-
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template, request
 from pyspark import SparkContext, StorageLevel
 from pyspark.sql import SparkSession
 import pyspark.sql.functions as F
@@ -7,6 +6,9 @@ from pyspark.ml import Pipeline
 from pyspark.sql.types import ArrayType, StringType
 from pyspark.ml.feature import Tokenizer, CountVectorizer, IDF, StopWordsRemover
 import re
+from transformers import pipeline
+from apscheduler.schedulers.background import BackgroundScheduler
+
 
 
 
@@ -26,7 +28,12 @@ def defineSparkSession():
 # Define Flask app
 app = Flask(__name__)
 spark = defineSparkSession()
+summarizer = pipeline("summarization", model="facebook/bart-large-cnn", device = 'mps')
 result_data = None
+keyword = ""
+state = ""
+country = ""
+model = ""
 
 # Custom stop words
 custom_stop_words = StopWordsRemover.loadDefaultStopWords("english") + ["\n", "\t", ""]
@@ -51,6 +58,7 @@ def cleanText(prompt):
     return ''
 
 
+
 # Load data
 def load_data(spark):
     return spark.read.parquet('/Users/sharan/Desktop/IDMP Data/*.parquet')
@@ -63,6 +71,8 @@ def prepare_data(df):
            .drop('openai_moderation', 'detoxify_moderation', 'hashed_ip', 'header', 'toxic', 'redacted', 'timestamp') \
            .withColumn('conversation_explode', F.explode(F.col("conversation"))) \
            .withColumn('prompt', F.col('conversation_explode.content')) \
+           .withColumn('state', F.lower(F.col('state'))) \
+           .withColumn('country', F.lower(F.col('country'))) \
            .withColumn('turn_identifier', F.col('conversation_explode.turn_identifier')) \
            .drop('conversation_explode') \
            .fillna({'state': " ", 'country': " "}) \
@@ -119,31 +129,67 @@ def spark_preprocess():
     # Cache result data
     result_data = processed_data
     preprocess_df.unpersist(blocking=True)
+    result_data = result_data.repartition(8)
+    result_data.count()
     result_data = result_data.persist(StorageLevel.DISK_ONLY)
     print("Spark preprocessing completed.")
 
-    return result_data
 
-    # Return result (example: limit 2 rows)
-    #result_data.limit(2).toPandas().to_json()
-    '''result_data.limit(2).show()
-    print("\n --------------------------------------------------\n")
-    print(result_data.printSchema())'''
+
+
 
 @app.route("/")
 def home():
-    # Serve precomputed data (limit 2 rows)
-    data = spark_preprocess()
-    result = data.limit(2).toPandas().to_dict(orient='records')
-    #print(result)
-    x = {
-        "s": "ha"
-    }
-    return jsonify(data)
+    return render_template("home.html")
+
+
+@app.route('/search', methods = ['POST'])
+def search_form():
+    global keyword, state, country, model
+    keyword = request.form['keyword']
+    state = request.form['state']
+    country = request.form['country']
+    model  = request.form['model']
+
+
+    if result_data is None:
+        return jsonify({"error": "Data has not been preprocessed yet. Please try again later."}), 500
+
+
+    if keyword:
+        keyword_result = result_data.filter(F.array_contains(F.col('frequent_terms'), keyword.strip().lower()))
+    else :
+        keyword_result = result_data
+
+    if model != 'Both':
+        keyword_result = keyword_result.filter(F.col('frequent_terms') == model)
+
+    if state != '':
+        keyword_result = keyword_result.filter(F.col('state') == state.strip().lower())
+
+    if country != '':
+        keyword_result = keyword_result.filter(F.col('country') == country.strip().lower())
+
+    keyword_result = keyword_result.select(F.col('full_interaction'), F.col('clean_interaction'))
+
+    keyword_result = keyword_result.withColumn('userprompt', F.split(F.col("full_interaction"), " --botresp-- ").getItem(0)).withColumn('botresp', F.split(F.col('full_interaction'), ' --botresp-- ').getItem(1)).drop('full_interaction')
+    result = keyword_result.toPandas().to_dict(orient='records')
+    print(result)
+    return jsonify(result)
+
+
+@app.route('/summarize', methods = ['POST'])
+def text_summarize():
+    text = request.form['text']
+    summarized = summarizer(text, min_length = 40, max_length = 1000, do_sample = False)
+    return summarized[0]['summary_text']
+
+
+
+
 
 
 # Run Flask app
 if __name__ == "__main__":
-    # spark_preprocess()
-
+    spark_preprocess()
     app.run()
