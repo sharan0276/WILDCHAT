@@ -151,18 +151,26 @@ def search_form():
     country = request.form['country']
     model  = request.form['model']
 
+    keyword = keyword.strip().lower() if keyword else ''
+    state = state.strip().lower() if state else ''
+    country = country.strip().lower() if country else ''
+    keyword = keyword.strip().lower() if keyword else ''
+
 
     if result_data is None:
         return jsonify({"error": "Data has not been preprocessed yet. Please try again later."}), 500
 
 
     if keyword:
-        keyword_result = result_data.filter(F.array_contains(F.col('frequent_terms'), keyword.strip().lower()))
+        keyword_result = result_data.filter(F.array_contains(F.col('frequent_terms'), keyword))
     else :
         keyword_result = result_data
 
     if model != 'Both':
-        keyword_result = keyword_result.filter(F.col('frequent_terms') == model)
+        if 'gpt-3.5' in model :
+            keyword_result =  keyword_result.filter(F.col('model').contains('gpt-3.5'))
+        else:
+            keyword_result = keyword_result.filter(F.col('model').contains('gpt-4'))
 
     if state != '':
         keyword_result = keyword_result.filter(F.col('state') == state.strip().lower())
@@ -170,8 +178,8 @@ def search_form():
     if country != '':
         keyword_result = keyword_result.filter(F.col('country') == country.strip().lower())
 
-    keyword_result = keyword_result.select(F.col('full_interaction'), F.col('clean_interaction'))
-
+    keyword_result = keyword_result.select(F.col('full_interaction'), F.col('clean_interaction'), F.col('state'), F.col('country'), F.col('model'))
+    print(keyword, country, state, model)
     keyword_result = keyword_result.withColumn('userprompt', F.split(F.col("full_interaction"), " --botresp-- ").getItem(0)).withColumn('botresp', F.split(F.col('full_interaction'), ' --botresp-- ').getItem(1)).drop('full_interaction')
     result = keyword_result.toPandas().to_dict(orient='records')
     print(result)

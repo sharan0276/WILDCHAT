@@ -91,23 +91,18 @@
     <br><br>
 
     <label for="state">State:</label>
-    <input id="state" name="state" required type="text" placeholder="Enter State">
+    <input id="state" name="state" placeholder="Enter State">
     <br><br>
 
     <label for="country">Country:</label>
-    <input id="country" name="country" required type="text" placeholder="Enter Country">
+    <input id="country" name="country"  placeholder="Enter Country">
     <br><br>
 
     <label for="model">Model:</label>
     <select id="model" name="model" placeholder="Enter Model">
         <option value="Both">Both</option>
-        <option value="gpt-3.5-turbo-0301">gpt-3.5-turbo-0301</option>
-        <option value="gpt-3.5-turbo-0613">gpt-3.5-turbo-0613</option>
-        <option value="gpt-3.5-turbo-0125">gpt-3.5-turbo-0125</option>
-        <option value="gpt-4-0314">gpt-4-0314</option>
-        <option value="gpt-4-1106-preview">gpt-4-1106-preview</option>
-        <option value="gpt-4-0613">gpt-4-0613</option>
-        <option value="gpt-4-0125-preview">gpt-4-0125-preview</option>
+        <option value="gpt-3.5">gpt-3.5</option>
+        <option value="gpt-4">gpt-4</option>
     </select>
     <br><br>
 
@@ -154,6 +149,14 @@
         const paginationDiv = document.getElementById('pagination');
         resultsDiv.innerHTML = '';
         paginationDiv.innerHTML = '';
+
+        if (searchResults.length === 0) {
+            // If no results, show "No Results" and hide pagination
+            const noResultsMessage = document.createElement('p');
+            noResultsMessage.innerText = 'No Results Found';
+            resultsDiv.appendChild(noResultsMessage);
+            return; // Exit the function to prevent rendering pagination
+        }
 
         const start = (currentPage - 1) * resultsPerPage;
         const end = start + resultsPerPage;
@@ -202,27 +205,29 @@
 
         const totalPages = Math.ceil(searchResults.length / resultsPerPage);
 
-        // Previous button
-        const prevButton = document.createElement('button');
-        prevButton.innerText = 'Previous';
-        prevButton.disabled = currentPage === 1;
-        prevButton.className = currentPage === 1 ? 'disabled' : '';
-        prevButton.addEventListener('click', () => {
-            currentPage--;
-            displayResults();
-        });
-        paginationDiv.appendChild(prevButton);
+        if (totalPages > 1) {
+            // Previous button
+            const prevButton = document.createElement('button');
+            prevButton.innerText = 'Previous';
+            prevButton.disabled = currentPage === 1;
+            prevButton.className = currentPage === 1 ? 'disabled' : '';
+            prevButton.addEventListener('click', () => {
+                currentPage--;
+                displayResults();
+            });
+            paginationDiv.appendChild(prevButton);
 
-        // Next button
-        const nextButton = document.createElement('button');
-        nextButton.innerText = 'Next';
-        nextButton.disabled = currentPage === totalPages;
-        nextButton.className = currentPage === totalPages ? 'disabled' : '';
-        nextButton.addEventListener('click', () => {
-            currentPage++;
-            displayResults();
-        });
-        paginationDiv.appendChild(nextButton);
+            // Next button
+            const nextButton = document.createElement('button');
+            nextButton.innerText = 'Next';
+            nextButton.disabled = currentPage === totalPages;
+            nextButton.className = currentPage === totalPages ? 'disabled' : '';
+            nextButton.addEventListener('click', () => {
+                currentPage++;
+                displayResults();
+            });
+            paginationDiv.appendChild(nextButton);
+        }
     }
 </script>
 </body>
