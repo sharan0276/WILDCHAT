@@ -4,7 +4,7 @@ from pyspark.sql import SparkSession
 import pyspark.sql.functions as F
 from pyspark.ml import Pipeline
 from pyspark.sql.types import ArrayType, StringType
-from pyspark.ml.feature import Tokenizer, CountVectorizer, IDF, StopWordsRemover
+from pyspark.ml.feature import Tokenizer, CountVectorizer, IDF, StopWordsRemover, Normalizer
 import re
 from transformers import pipeline
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -40,8 +40,9 @@ custom_stop_words = StopWordsRemover.loadDefaultStopWords("english") + ["\n", "\
 global_pipeline = Pipeline(stages=[
     Tokenizer(inputCol='clean_interaction', outputCol='tokenized_clean'),
     StopWordsRemover(inputCol='tokenized_clean', outputCol='swr_clean_tokens', stopWords=custom_stop_words),
-    CountVectorizer(inputCol='swr_clean_tokens', outputCol='raw_features', vocabSize=100000000, minDF=2.0),
-    IDF(inputCol='raw_features', outputCol='tfidf_features')
+    CountVectorizer(inputCol='swr_clean_tokens', outputCol='raw_features', vocabSize=100000000, minDF=2.0, maxDF = 0.80),
+    IDF(inputCol='raw_features', outputCol='tfidf_features'),
+    Normalizer(inputCol="tfidf_features", outputCol="normalized_tfidf", p=2.0)
 ])
 
 # Clean text function
@@ -92,7 +93,7 @@ def pipeline_definition(df):
     return global_pipeline.fit(df)
 
 # Extract frequent terms
-def extract_frequent_terms(tfidf_vector, vocab, threshold=2):
+def extract_frequent_terms(tfidf_vector, vocab, threshold=0.15):
     indices = tfidf_vector.indices
     values = tfidf_vector.values
     terms = [vocab[i] for i, val in zip(indices, values) if val >= threshold and len(vocab[i]) > 1 ]
@@ -123,7 +124,7 @@ def spark_preprocess():
     # Apply frequent terms UDF
     processed_data = processed_data.withColumn(
         "frequent_terms",
-        frequent_terms_udf(vocab_broadcast)(F.col("tfidf_features"))
+        frequent_terms_udf(vocab_broadcast)(F.col("normalized_tfidf"))
     ).drop('tfidf_features', 'raw_features', 'swr_clean_tokens', 'tokenized_clean')
 
     # Cache result data
