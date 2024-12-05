@@ -19,3 +19,5 @@
 
 <br> The keyword to be searched is applied on the 'frequent words' field, which is created using tf-idf methodology, to check if any words match with the input keyword. Furthermore, other filters such as country, state, GPT model are applied based on the passed input. </br>
 
+An interactive application was developed using Flask to deliver powerful keyword search and summarization capabilities for the WILDCHAT dataset. This tool allows users to seamlessly query the dataset by keyword, country, state, and GPT model, offering dynamic, real-time insights into over one million ChatGPT interactions. This Github repository contains code, and sample data that were used with this project. 
+
