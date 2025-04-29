@@ -16,7 +16,7 @@
  
  <br> &nbsp; 5. The combined interaction is cleaned, and the words that appear more frequently in the interaction are saved in the 'frequent words'. field. </br>
 
-## ANALYSIS TECNIQUES
+## ANALYSIS TECHNIQUES
 
 <br> A preprocessing pipeline was developed using PySpark to enhance keyword extraction, employing tokenization, stop word removal, count vectorization (excluding rare or overly common words), TF-IDF transformation, and feature scaling. A frequent-terms column was created, containing tokens with normalized TF-IDF values >0.20, ensuring efficient keyword extraction and noise reduction.</br>
 
